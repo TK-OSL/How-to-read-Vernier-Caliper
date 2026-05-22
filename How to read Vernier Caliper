@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="en">
+<!-- 
+=============================================================================
+ Interactive Vernier Caliper Simulator (Bilingual Edition)
+=============================================================================
+ Project Context & Educational Design : OpenSimLab (https://opensimlab.org)
+ Software Development / Coded by      : Google Gemini
+
+ Description:
+ A responsive, interactive web application built with HTML5 Canvas, Tailwind CSS, 
+ and Vanilla JavaScript to teach the proper reading of a 0.05 mm Vernier Caliper.
+ Includes an EN/TH language toggle as requested.
+=============================================================================
+-->
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Vernier Caliper</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+        #canvas-container {
+            position: relative;
+            width: 100%;
+            max-width: 900px;
+            background-color: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            margin-top: 20px;
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            height: auto;
+            touch-action: none;
+            cursor: grab;
+        }
+        canvas:active {
+            cursor: grabbing;
+        }
+        
+        .controls-card {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            width: 100%;
+            max-width: 900px;
+            margin-top: 20px;
+        }
+
+        .reading-display {
+            font-family: monospace;
+            background: #1e293b;
+            color: #10b981;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 1.5rem;
+            font-weight: bold;
+            text-align: center;
+            letter-spacing: 2px;
+        }
+
+        .btn {
+            transition: all 0.2s ease;
+        }
+        .btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+    </style>
+</head>
+<body class="p-4 sm:p-8">
+
+    <!-- Top Bar with Language Toggle -->
+    <div class="w-full max-w-4xl mx-auto flex justify-end mt-2 mb-4">
+        <div class="bg-slate-50 p-1 rounded-xl inline-flex items-center border border-slate-200 shadow-sm">
+            <button id="lang-en" onclick="setLang('en')" class="px-4 py-1.5 rounded-md text-sm font-bold bg-white text-slate-600 shadow-sm transition-all">EN</button>
+            <button id="lang-th" onclick="setLang('th')" class="px-4 py-1.5 rounded-md text-sm font-bold text-slate-400 hover:text-orange-500 transition-all cursor-pointer">TH</button>
+        </div>
+    </div>
+
+    <header class="text-center w-full max-w-4xl mx-auto mb-6">
+        <h1 id="ui-title" class="text-3xl sm:text-4xl font-extrabold text-slate-800 mb-2">How to Read a Vernier Caliper</h1>
+        <div class="flex flex-col sm:flex-row items-center justify-center space-y-2 sm:space-y-0 sm:space-x-4 mb-2">
+            <p id="ui-subtitle" class="text-slate-500 font-medium">Click and drag the lower jaw to move</p>
+            <div class="flex items-center space-x-2 bg-white px-3 py-1 rounded-full shadow-sm border border-slate-200">
+                <label id="ui-res-label" class="text-slate-600 font-semibold text-sm">Resolution:</label>
+                <select id="resolution-select" class="border-none bg-transparent text-sm font-bold text-blue-600 outline-none cursor-pointer">
+                    <option value="0.1">0.1 mm</option>
+                    <option value="0.05" selected>0.05 mm</option>
+                    <option value="0.02">0.02 mm</option>
+                </select>
+            </div>
+        </div>
+    </header>
+
+    <!-- 3-Step Guide -->
+    <div class="steps-card w-full max-w-4xl mx-auto">
+        <h2 id="ui-step-title" class="text-lg font-bold text-slate-700 mb-4 flex items-center">
+            <svg class="w-6 h-6 mr-2 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+            How to Read in 3 Steps
+        </h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="flex flex-col">
+                <span id="ui-step1-title" class="text-blue-600 font-bold mb-1">1. Main Scale</span>
+                <span id="ui-step1-desc" class="text-sm text-slate-600">Look at the 0 line on the Vernier (bottom). See which line it passed on the Main scale (top).</span>
+            </div>
+            <div class="flex flex-col border-t md:border-t-0 md:border-l border-slate-200 pt-4 md:pt-0 md:pl-6">
+                <span id="ui-step2-title" class="text-green-600 font-bold mb-1">2. Vernier Scale</span>
+                <span id="ui-step2-desc" class="text-sm text-slate-600">Find the single line on the Vernier scale that perfectly matches any line on the top scale.</span>
+            </div>
+            <div class="flex flex-col border-t md:border-t-0 md:border-l border-slate-200 pt-4 md:pt-0 md:pl-6">
+                <span id="ui-step3-title" class="text-emerald-600 font-bold mb-1">3. Total Reading</span>
+                <span id="ui-step3-desc" class="text-sm text-slate-600">Main Scale + (Matching line &times; 0.05)</span>
+            </div>
+        </div>
+    </div>
+
+    <div id="canvas-container" class="overflow-x-auto overflow-y-hidden">
+        <canvas id="vernierCanvas" width="1200" height="300" style="min-width: 1000px;"></canvas>
+    </div>
+
+    <!-- Control Panels -->
+    <div class="controls-container w-full max-w-4xl mx-auto mt-4">
+        <div class="flex border-b border-slate-200 mb-6">
+            <button id="tab-learn" class="px-6 py-3 font-semibold text-blue-600 border-b-2 border-blue-600 focus:outline-none">Learning Mode</button>
+            <button id="tab-quiz" class="px-6 py-3 font-semibold text-slate-400 hover:text-slate-600 border-b-2 border-transparent focus:outline-none">Practice Mode</button>
+        </div>
+
+        <!-- Learning Mode Panel -->
+        <div id="panel-learn" class="block">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+                <div class="bg-slate-800 text-slate-100 p-6 rounded-xl shadow-inner">
+                    <div class="flex justify-between items-center text-sm text-slate-300 mb-2">
+                        <span id="ui-learn-main">Main Scale:</span>
+                        <span id="live-main" class="font-mono text-xl text-blue-400">0.00 mm</span>
+                    </div>
+                    <div class="flex justify-between items-center text-sm text-slate-300 mb-4">
+                        <span id="ui-learn-vernier">Vernier Scale:</span>
+                        <span id="live-vernier" class="font-mono text-xl text-green-400">0.00 mm</span>
+                    </div>
+                    <div class="border-t border-slate-600 pt-3 flex justify-between items-center">
+                        <span id="ui-learn-total" class="text-sm font-semibold uppercase tracking-wider text-slate-400">Total Reading</span>
+                        <span id="live-total" class="font-mono text-3xl font-bold text-emerald-400">0.00 mm</span>
+                    </div>
+                </div>
+                <div>
+                    <div class="flex items-start space-x-3 bg-blue-50 p-4 rounded-lg border border-blue-100">
+                        <input type="checkbox" id="show-hint" class="mt-1 w-5 h-5 text-blue-600 rounded focus:ring-blue-500 cursor-pointer" checked>
+                        <label for="show-hint" class="text-slate-700 font-medium cursor-pointer">
+                            <span id="ui-hint-title">Show aligned lines</span> <br>
+                            <span id="ui-hint-desc" class="text-sm font-normal text-slate-500">Highlights the reading point with a <span class="text-red-500 font-bold">Red Oval</span></span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quiz/Practice Mode Panel -->
+        <div id="panel-quiz" class="hidden">
+            <div class="text-center max-w-xl mx-auto">
+                <div class="mb-4 text-4xl" id="quiz-icon">🤔</div>
+                <p id="quiz-status" class="text-slate-700 font-medium mb-6">Click "Random Position" to start, then type your reading.</p>
+                
+                <div class="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3 mb-6 justify-center">
+                    <input type="number" id="user-answer" step="0.05" min="0" placeholder="Value (mm)" 
+                           class="w-full sm:w-48 px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-center font-mono text-lg disabled:bg-slate-100 disabled:text-slate-400" disabled>
+                    <button id="btn-check" class="btn bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3 px-6 rounded-lg shadow-md disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                        Check Answer
+                    </button>
+                </div>
+                
+                <button id="btn-random" class="btn bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-lg shadow-md">
+                    Random Position
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer Section for Credits -->
+    <footer class="w-full max-w-4xl mx-auto mt-12 mb-8 text-center text-slate-500 text-sm">
+        <p id="ui-footer-credits">Credits & Inspiration: <a href="https://opensimlab.org" target="_blank" class="font-semibold text-blue-600 hover:underline transition-colors">opensimlab.org</a></p>
+        <p id="ui-footer-code" class="mt-1">Coded by Google Gemini</p>
+    </footer>
+
+    <script>
+        /**
+         * ============================================================================
+         * Vernier Caliper Rendering & Logic Engine (Bilingual)
+         * ============================================================================
+         * Concept & Physics Engine Inspiration : OpenSimLab (https://opensimlab.org)
+         * Engineered by                        : Google Gemini
+         * ============================================================================
+         */
+
+        // --- i18n Dictionary ---
+        const i18n = {
+            en: {
+                title: "How to Read a Vernier Caliper",
+                subtitle: "Click and drag the lower jaw to move",
+                stepTitle: "How to Read in 3 Steps",
+                step1Title: "1. Main Scale",
+                step1Desc: "Look at the 0 line on the Vernier (bottom). See which line it passed on the Main scale (top).",
+                step2Title: "2. Vernier Scale",
+                step2Desc: "Find the single line on the Vernier scale that perfectly matches any line on the top scale.",
+                step3Title: "3. Total Reading",
+                step3Desc: "Main Scale + (Matching line × {res})",
+                tabLearn: "Learning Mode",
+                tabQuiz: "Practice Mode",
+                learnMain: "Main Scale:",
+                learnVernier: "Vernier Scale:",
+                learnTotal: "Total Reading",
+                hintTitle: "Show aligned lines",
+                hintDesc: "Highlights the reading point with a <span class=\"text-red-500 font-bold\">Red Oval</span>",
+                quizStartStatus: "Click \"Random Position\" to start, then type your reading.",
+                quizActionStatus: "Read the scale and enter your answer ({res} mm resolution).",
+                quizPlaceholder: "Value (mm)",
+                btnCheck: "Check Answer",
+                btnRandom: "Random Position",
+                credits: "Credits & Inspiration:",
+                codeBy: "Coded by Google Gemini",
+                objectText: "Object",
+                alertInvalid: "Please enter a valid number.",
+                quizCorrect: "<b>Correct!</b> The value is {val} mm",
+                quizIncorrect: "<b>Incorrect.</b> Please check the main scale and the matching line again.",
+                resLabel: "Resolution:"
+            },
+            th: {
+                title: "วิธีอ่านค่าเวอร์เนียร์คาลิปเปอร์",
+                subtitle: "คลิกแล้วลากที่ปากวัดด้านล่างเพื่อเลื่อน",
+                stepTitle: "วิธีอ่านค่าใน 3 ขั้นตอน",
+                step1Title: "1. สเกลหลัก (Main Scale)",
+                step1Desc: "ดูที่ขีด 0 ของสเกลเวอร์เนียร์ (ด้านล่าง) ว่าเลยขีดไหนของสเกลหลัก (ด้านบน) มาแล้ว",
+                step2Title: "2. สเกลเวอร์เนียร์ (Vernier Scale)",
+                step2Desc: "หาขีดบนสเกลเวอร์เนียร์เพียง 1 ขีด ที่ตรงกับขีดบนสเกลหลักพอดีเป็นเส้นตรงเดียวกัน",
+                step3Title: "3. ผลรวม (Total Reading)",
+                step3Desc: "สเกลหลัก + (ขีดที่ตรงกัน × {res})",
+                tabLearn: "โหมดเรียนรู้",
+                tabQuiz: "โหมดฝึกซ้อม",
+                learnMain: "สเกลหลัก:",
+                learnVernier: "สเกลเวอร์เนียร์:",
+                learnTotal: "อ่านค่าได้",
+                hintTitle: "แสดงเส้นที่ตรงกัน",
+                hintDesc: "เน้นจุดที่สเกลตรงกันด้วย <span class=\"text-red-500 font-bold\">วงรีสีแดง</span>",
+                quizStartStatus: "คลิก \"สุ่มตำแหน่ง\" เพื่อเริ่มต้น จากนั้นพิมพ์ค่าที่อ่านได้",
+                quizActionStatus: "อ่านค่าจากสเกลแล้วพิมพ์คำตอบ (ความละเอียด {res} มม.)",
+                quizPlaceholder: "ระบุค่า (มม.)",
+                btnCheck: "ตรวจคำตอบ",
+                btnRandom: "สุ่มตำแหน่ง",
+                credits: "เครดิตและแรงบันดาลใจ:",
+                codeBy: "เขียนโค้ดโดย Google Gemini",
+                objectText: "ชิ้นงาน",
+                alertInvalid: "กรุณากรอกตัวเลขให้ถูกต้อง",
+                quizCorrect: "<b>ถูกต้อง!</b> ค่าที่อ่านได้คือ {val} มม.",
+                quizIncorrect: "<b>ผิดครับ</b> ลองพิจารณาสเกลหลักและเส้นที่ตรงกันอีกครั้งนะ",
+                resLabel: "ความละเอียด:"
+            }
+        };
+
+        let currentLang = 'en';
+        let quizState = 'start'; // 'start', 'playing', 'correct', 'incorrect'
+        
+        let currentResVal = 0.05;
+        const RES_CONFIGS = {
+            '0.1': { divs: 10, mainCover: 9 },
+            '0.05': { divs: 20, mainCover: 19 },
+            '0.02': { divs: 50, mainCover: 49 }
+        };
+
+        function setLang(lang) {
+            currentLang = lang;
+            const t = i18n[lang];
+
+            // Update Toggle Button Styles
+            const btnEn = document.getElementById('lang-en');
+            const btnTh = document.getElementById('lang-th');
+            
+            if(lang === 'en') {
+                btnEn.className = "px-4 py-1.5 rounded-md text-sm font-bold bg-white text-slate-600 shadow-sm transition-all";
+                btnTh.className = "px-4 py-1.5 rounded-md text-sm font-bold text-slate-400 hover:text-orange-500 transition-all cursor-pointer";
+            } else {
+                btnTh.className = "px-4 py-1.5 rounded-md text-sm font-bold bg-white text-orange-500 shadow-sm transition-all";
+                btnEn.className = "px-4 py-1.5 rounded-md text-sm font-bold text-slate-400 hover:text-slate-600 transition-all cursor-pointer";
+            }
+
+            // Update UI Texts
+            document.getElementById('ui-title').innerHTML = t.title;
+            document.getElementById('ui-subtitle').innerHTML = t.subtitle;
+            document.getElementById('ui-res-label').textContent = t.resLabel;
+            document.getElementById('ui-step-title').innerHTML = `<svg class="w-6 h-6 mr-2 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>` + t.stepTitle;
+            document.getElementById('ui-step1-title').textContent = t.step1Title;
+            document.getElementById('ui-step1-desc').textContent = t.step1Desc;
+            document.getElementById('ui-step2-title').textContent = t.step2Title;
+            document.getElementById('ui-step2-desc').textContent = t.step2Desc;
+            document.getElementById('ui-step3-title').textContent = t.step3Title;
+            document.getElementById('ui-step3-desc').innerHTML = t.step3Desc.replace('{res}', currentResVal);
+            
+            document.getElementById('tab-learn').textContent = t.tabLearn;
+            document.getElementById('tab-quiz').textContent = t.tabQuiz;
+            document.getElementById('ui-learn-main').textContent = t.learnMain;
+            document.getElementById('ui-learn-vernier').textContent = t.learnVernier;
+            document.getElementById('ui-learn-total').textContent = t.learnTotal;
+            document.getElementById('ui-hint-title').textContent = t.hintTitle;
+            document.getElementById('ui-hint-desc').innerHTML = t.hintDesc;
+            
+            document.getElementById('user-answer').placeholder = t.quizPlaceholder;
+            document.getElementById('btn-check').textContent = t.btnCheck;
+            document.getElementById('btn-random').textContent = t.btnRandom;
+
+            document.getElementById('ui-footer-credits').innerHTML = `${t.credits} <a href="https://opensimlab.org" target="_blank" class="font-semibold text-blue-600 hover:underline transition-colors">opensimlab.org</a>`;
+            document.getElementById('ui-footer-code').textContent = t.codeBy;
+
+            // Update Quiz Status based on state
+            if (quizState === 'start') {
+                quizStatus.innerHTML = t.quizStartStatus;
+            } else if (quizState === 'playing') {
+                quizStatus.innerHTML = t.quizActionStatus.replace('{res}', currentResVal);
+            } else if (quizState === 'correct') {
+                quizStatus.innerHTML = t.quizCorrect.replace('{val}', targetQuizMM.toFixed(2));
+            } else if (quizState === 'incorrect') {
+                quizStatus.innerHTML = t.quizIncorrect;
+            }
+
+            draw(); // Redraw canvas for object text updates
+        }
+
+        document.getElementById('resolution-select').addEventListener('change', (e) => {
+            currentResVal = parseFloat(e.target.value);
+            vernierPositionMM = Math.round(vernierPositionMM / currentResVal) * currentResVal;
+            vernierPositionMM = parseFloat(vernierPositionMM.toFixed(2));
+            
+            setLang(currentLang); 
+            
+            if (isQuizMode) resetQuizUI();
+            updateReadingUI();
+            draw();
+        });
+
+        const canvas = document.getElementById('vernierCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // UI Elements
+        const liveMainEl = document.getElementById('live-main');
+        const liveVernierEl = document.getElementById('live-vernier');
+        const liveTotalEl = document.getElementById('live-total');
+        const showHintCheckbox = document.getElementById('show-hint');
+        const btnRandom = document.getElementById('btn-random');
+        const btnCheck = document.getElementById('btn-check');
+        const inputAnswer = document.getElementById('user-answer');
+        const quizStatus = document.getElementById('quiz-status');
+        const quizIcon = document.getElementById('quiz-icon');
+
+        // Tab Elements
+        const tabLearn = document.getElementById('tab-learn');
+        const tabQuiz = document.getElementById('tab-quiz');
+        const panelLearn = document.getElementById('panel-learn');
+        const panelQuiz = document.getElementById('panel-quiz');
+
+        // --- Vernier Specifications & State ---
+        const PIXELS_PER_MM = 10; 
+        const MAX_MM_DRAW = 110; 
+        const MAX_MM_SLIDE = 55; 
+        const MAIN_SCALE_START_X = 50;
+        const MAIN_SCALE_Y = 150; 
+        
+        let vernierPositionMM = 0.00; 
+        let isDragging = false;
+        let startDragX = 0;
+        let startVernierMM = 0;
+        let isQuizMode = false;
+        let targetQuizMM = 0;
+
+        function mmToPx(mm) { return mm * PIXELS_PER_MM; }
+        function pxToMm(px) { return px / PIXELS_PER_MM; }
+
+        // --- Tab Switching Logic ---
+        tabLearn.addEventListener('click', () => {
+            panelLearn.classList.remove('hidden');
+            panelLearn.classList.add('block');
+            panelQuiz.classList.remove('block');
+            panelQuiz.classList.add('hidden');
+            tabLearn.className = "px-6 py-3 font-semibold text-blue-600 border-b-2 border-blue-600 focus:outline-none";
+            tabQuiz.className = "px-6 py-3 font-semibold text-slate-400 hover:text-slate-600 border-b-2 border-transparent focus:outline-none";
+            isQuizMode = false;
+            updateReadingUI();
+            draw();
+        });
+
+        tabQuiz.addEventListener('click', () => {
+            panelQuiz.classList.remove('hidden');
+            panelQuiz.classList.add('block');
+            panelLearn.classList.remove('block');
+            panelLearn.classList.add('hidden');
+            tabQuiz.className = "px-6 py-3 font-semibold text-blue-600 border-b-2 border-blue-600 focus:outline-none";
+            tabLearn.className = "px-6 py-3 font-semibold text-slate-400 hover:text-slate-600 border-b-2 border-transparent focus:outline-none";
+            resetQuizUI();
+            draw();
+        });
+
+        // --- Event Listeners for Interaction ---
+        function getPointerPos(e) {
+            const rect = canvas.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const scaleX = canvas.width / rect.width;
+            return (clientX - rect.left) * scaleX;
+        }
+
+        function startDrag(e) {
+            e.preventDefault(); 
+            const pointerX = getPointerPos(e);
+            
+            const vernierPixelX = MAIN_SCALE_START_X + mmToPx(vernierPositionMM);
+            if (pointerX >= vernierPixelX - 20 && pointerX <= vernierPixelX + 420) {
+                isDragging = true;
+                startDragX = pointerX;
+                startVernierMM = vernierPositionMM;
+                canvas.style.cursor = 'grabbing';
+                
+                if(isQuizMode) resetQuizUI();
+            }
+        }
+
+        function drag(e) {
+            if (!isDragging) return;
+            e.preventDefault();
+            
+            const pointerX = getPointerPos(e);
+            const dxPx = pointerX - startDragX;
+            const dxMm = pxToMm(dxPx);
+            
+            let newMM = startVernierMM + dxMm;
+            
+            // Snap to selected resolution
+            newMM = Math.round(newMM / currentResVal) * currentResVal;
+            newMM = parseFloat(newMM.toFixed(2));
+            
+            if (newMM < 0) newMM = 0;
+            if (newMM > MAX_MM_SLIDE) newMM = MAX_MM_SLIDE;
+            
+            if(vernierPositionMM !== newMM) {
+                vernierPositionMM = newMM;
+                updateReadingUI();
+                draw();
+            }
+        }
+
+        function endDrag() {
+            isDragging = false;
+            canvas.style.cursor = 'grab';
+        }
+
+        canvas.addEventListener('mousedown', startDrag);
+        window.addEventListener('mousemove', drag); 
+        window.addEventListener('mouseup', endDrag);
+
+        canvas.addEventListener('touchstart', startDrag, {passive: false});
+        window.addEventListener('touchmove', drag, {passive: false});
+        window.addEventListener('touchend', endDrag);
+
+        function drawMainScale() {
+            ctx.fillStyle = '#cbd5e1'; 
+            ctx.fillRect(10, MAIN_SCALE_Y - 50, canvas.width - 20, 100);
+            
+            ctx.beginPath();
+            ctx.moveTo(MAIN_SCALE_START_X, MAIN_SCALE_Y + 50);
+            ctx.lineTo(MAIN_SCALE_START_X, MAIN_SCALE_Y + 160); 
+            ctx.lineTo(MAIN_SCALE_START_X - 30, MAIN_SCALE_Y + 120);
+            ctx.lineTo(MAIN_SCALE_START_X - 30, MAIN_SCALE_Y + 50);
+            ctx.fillStyle = '#94a3b8';
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'bottom';
+            ctx.font = '16px Inter'; 
+
+            for (let i = 0; i <= MAX_MM_DRAW; i++) {
+                const x = MAIN_SCALE_START_X + mmToPx(i);
+                
+                if(x > canvas.width) break;
+
+                let lineLength = 15; 
+                
+                if (i % 10 === 0) {
+                    lineLength = 30; 
+                    ctx.fillStyle = '#0f172a';
+                    ctx.fillText((i / 10).toString(), x, MAIN_SCALE_Y - lineLength - 5);
+                } else if (i % 5 === 0) {
+                    lineLength = 22; 
+                }
+
+                ctx.strokeStyle = '#0f172a';
+                ctx.lineWidth = 1;
+
+                ctx.beginPath();
+                ctx.moveTo(x, MAIN_SCALE_Y);
+                ctx.lineTo(x, MAIN_SCALE_Y - lineLength);
+                ctx.stroke();
+            }
+        }
+
+        function drawVernierScale(offsetX_MM) {
+            const config = RES_CONFIGS[currentResVal.toString()];
+            const V_SPACING_MM = config.mainCover / config.divs;
+            const vernierX = MAIN_SCALE_START_X + mmToPx(offsetX_MM);
+            
+            const vBgWidth = Math.max(420, mmToPx(config.mainCover) + 60);
+            
+            ctx.fillStyle = 'rgba(241, 245, 249, 0.9)'; 
+            ctx.fillRect(vernierX, MAIN_SCALE_Y, vBgWidth, 60);
+            ctx.strokeRect(vernierX, MAIN_SCALE_Y, vBgWidth, 60);
+
+            ctx.beginPath();
+            ctx.moveTo(vernierX, MAIN_SCALE_Y + 60);
+            ctx.lineTo(vernierX, MAIN_SCALE_Y + 160);
+            ctx.lineTo(vernierX + 30, MAIN_SCALE_Y + 120);
+            ctx.lineTo(vernierX + 30, MAIN_SCALE_Y + 60);
+            ctx.fillStyle = 'rgba(226, 232, 240, 0.9)';
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = '#b91c1c'; 
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'top';
+            ctx.font = '14px Inter'; 
+            
+            let alignedIndex = -1; 
+            const decimalPart = Math.round((offsetX_MM % 1) * 100) / 100;
+            alignedIndex = Math.round(decimalPart / currentResVal);
+            if(decimalPart === 0 && offsetX_MM > 0) alignedIndex = 0; 
+
+            let alignedXList = []; 
+
+            for (let i = 0; i <= config.divs; i++) {
+                const x = vernierX + mmToPx(i * V_SPACING_MM);
+                let lineLength = 15;
+                let showNumber = false;
+                let numValue = 0;
+
+                if (currentResVal === 0.1) {
+                    showNumber = true;
+                    numValue = i;
+                    lineLength = 25;
+                } else if (currentResVal === 0.05) {
+                    if (i % 2 === 0) { showNumber = true; numValue = i / 2; lineLength = 25; }
+                } else if (currentResVal === 0.02) {
+                    if (i % 5 === 0) { showNumber = true; numValue = i / 5; lineLength = 25; }
+                }
+                
+                if (showNumber) {
+                    ctx.fillText(numValue.toString(), x, MAIN_SCALE_Y + lineLength + 5);
+                }
+                
+                // For Hint logic, if learning mode checkbox is checked OR quiz is completed
+                let shouldShowHint = (!isQuizMode && showHintCheckbox.checked) || (isQuizMode && quizState === 'correct');
+
+                if (shouldShowHint && (i === alignedIndex || (decimalPart === 0 && i === config.divs) )) {
+                    alignedXList.push(x);
+                }
+
+                ctx.strokeStyle = '#b91c1c';
+                ctx.lineWidth = 1;
+
+                ctx.beginPath();
+                ctx.moveTo(x, MAIN_SCALE_Y);
+                ctx.lineTo(x, MAIN_SCALE_Y + lineLength);
+                ctx.stroke();
+            }
+            
+            alignedXList.forEach(x => {
+                ctx.strokeStyle = '#ef4444'; 
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.ellipse(x, MAIN_SCALE_Y, 9, 28, 0, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(239, 68, 68, 0.2)'; 
+                ctx.fill();
+                ctx.stroke();
+            });
+            
+            if (offsetX_MM > 0) {
+                const objWidth = mmToPx(offsetX_MM);
+                ctx.fillStyle = '#f97316';
+                ctx.fillRect(MAIN_SCALE_START_X, MAIN_SCALE_Y + 45, objWidth, 50);
+                ctx.strokeRect(MAIN_SCALE_START_X, MAIN_SCALE_Y + 45, objWidth, 50);
+                
+                ctx.fillStyle = 'white';
+                ctx.font = '14px Inter font-bold';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                if(objWidth > 40) {
+                    ctx.fillText(i18n[currentLang].objectText, MAIN_SCALE_START_X + objWidth/2, MAIN_SCALE_Y + 70);
+                }
+            }
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawMainScale();
+            drawVernierScale(vernierPositionMM);
+        }
+
+        function updateReadingUI() {
+            if(!isQuizMode) {
+                const mainVal = Math.floor(vernierPositionMM);
+                const vernierVal = Math.round((vernierPositionMM - mainVal) * 100) / 100;
+
+                liveMainEl.textContent = mainVal.toFixed(2) + " mm";
+                
+                // Adjust decimals displayed based on resolution
+                if(currentResVal === 0.1) {
+                    liveVernierEl.textContent = vernierVal.toFixed(1) + " mm";
+                    liveTotalEl.textContent = vernierPositionMM.toFixed(1) + " mm";
+                } else {
+                    liveVernierEl.textContent = vernierVal.toFixed(2) + " mm";
+                    liveTotalEl.textContent = vernierPositionMM.toFixed(2) + " mm";
+                }
+                
+                liveMainEl.style.color = '#60a5fa'; 
+                liveVernierEl.style.color = '#4ade80'; 
+                liveTotalEl.style.color = '#34d399'; 
+            }
+        }
+
+        showHintCheckbox.addEventListener('change', draw);
+
+        function resetQuizUI() {
+            isQuizMode = true;
+            quizState = 'start';
+            inputAnswer.disabled = true;
+            btnCheck.disabled = true;
+            inputAnswer.value = '';
+            quizIcon.textContent = "🤔";
+            quizStatus.innerHTML = i18n[currentLang].quizStartStatus;
+            quizStatus.className = "text-slate-700 font-medium mb-6";
+        }
+
+        btnRandom.addEventListener('click', () => {
+            const maxSteps = Math.floor(MAX_MM_SLIDE / currentResVal);
+            const minSteps = Math.floor(2 / currentResVal); // Minimum 2mm
+            const steps = Math.floor(Math.random() * (maxSteps - minSteps) + minSteps); 
+            targetQuizMM = steps * currentResVal;
+            targetQuizMM = parseFloat(targetQuizMM.toFixed(2)); 
+            
+            vernierPositionMM = targetQuizMM;
+            quizState = 'playing';
+            
+            inputAnswer.disabled = false;
+            btnCheck.disabled = false;
+            inputAnswer.value = '';
+            inputAnswer.focus();
+            inputAnswer.step = currentResVal;
+            quizIcon.textContent = "🧐";
+            quizStatus.innerHTML = i18n[currentLang].quizActionStatus.replace('{res}', currentResVal);
+            quizStatus.className = "text-blue-600 font-bold mb-6";
+
+            draw();
+        });
+
+        btnCheck.addEventListener('click', () => {
+            if(!isQuizMode) return;
+            
+            const userVal = parseFloat(inputAnswer.value);
+            if(isNaN(userVal)) {
+                alert(i18n[currentLang].alertInvalid);
+                return;
+            }
+            
+            if(Math.abs(userVal - targetQuizMM) < 0.01) {
+                quizState = 'correct';
+                quizIcon.textContent = "🎉";
+                quizStatus.innerHTML = i18n[currentLang].quizCorrect.replace('{val}', targetQuizMM.toFixed(2));
+                quizStatus.className = "text-emerald-600 font-bold mb-6 text-xl";
+                draw(); // Redraw to show hint oval
+            } else {
+                quizState = 'incorrect';
+                quizIcon.textContent = "❌";
+                quizStatus.innerHTML = i18n[currentLang].quizIncorrect;
+                quizStatus.className = "text-red-500 font-bold mb-6 text-lg";
+            }
+        });
+
+        inputAnswer.addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') {
+                btnCheck.click();
+            }
+        });
+
+        // Initialize App
+        vernierPositionMM = 12.35;
+        setLang('en'); // Defaults to English, will also trigger the initial draw() and text population
+
+    </script>
+</body>
+</html>
